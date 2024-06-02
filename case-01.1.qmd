@@ -1,0 +1,403 @@
+---
+title: "Analítica Avanzada de Datos"
+subtitle: "Caso #1"
+author:
+  - name: Jorge I. Vélez, PhD - Julian Acevedo
+    orcid: 0000-0002-3146-7899
+    url: https://jorgeivanvelez.netlify.app/
+    email: jvelezv@uninorte.edu.co
+    affiliation: 
+      - name: Universidad del Norte, Barranquilla
+date: "5/18/2024"
+lang: es
+self-contained: true
+fontsize: 14pt
+code-fold: show
+code-tools: true
+number-sections: false
+format: html
+toc: true
+toc-title: ""
+toc-depth: 3
+math: true
+
+---
+
+```{r, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+options(warn = -1)
+```
+
+### Importante
+
+1. El puntaje asociado a cada conjunto de preguntas se encuentra entre (). 
+2. **Pueden utilizarse herramientas y/o conceptos de otras asignaturas** en caso de ser necesario.  
+3. Tenga en cuenta que aunque los cálculos son importantes, el **análisis e interpretación** tendrán un mayor peso en la calificación.
+4. La solución debe enviarse en formato `HTML` a <jvelezv@uninorte.edu.co> a más tardar el **Viernes 31 de Mayo de 2024 a las 2 PM**.
+
+
+## Contexto Analítico
+
+Un grupo de investigación de una prestigiosa Universidad estudia una transtorno del neurodesarollo que se presenta principalmente en niños. 
+
+Los datos pueden leerse en `R` haciendo:
+
+```{r, echo=TRUE, eval=TRUE}
+## data set
+x <- read.table('https://tinyurl.com/PsychoDB', 
+                sep = ',', header = TRUE)
+```
+
+En total se registraron datos en `r ncol(x)` variables en `r NROW(x)` individuos. Las columnas relevantes para el desarrollo del exámen son:
+
+1.  `Family`: Familia a la que pertenece el individuo;
+2.  `UID`: Identificador de la persona;
+3.  `Father`: Si el individuo es papá, la variable toma el valor de `0`;
+4.  `Mother`: Si el individuo es mamá, la variable toma el valor de `0`;
+5.  `Sex`: Sexo del individuo (`M`: Male, `F`: Female);
+6.  `Age`: Edad en años al momento del diagnóstico;
+7.  `ADHD`: Diagnóstico (`yes`: enfermo; `no`: sano);
+8.  `cluster`: Grupo de severidad al que pertenece;
+9.  `inatsymptoms`: Número de síntomas de inatención;
+10. `impsymptoms`: Número de síntomas de impulsividad;
+11. `hypsymptoms`: Número de síntomas de hyperactividad;
+12. `trait1`: Tiempo de reacción en milisegundos (ms) para terminar una tarea.
+
+Estos datos han sido utilizados como parte de investigaciones previas en ADHD (ver por ejemplo [este](https://journals.sagepub.com/doi/full/10.1177/10870547211015426), [este](https://www.mdpi.com/2076-3425/11/9/1218), [este](https://www.mdpi.com/2076-3425/11/7/854) y [este](https://journals.sagepub.com/doi/full/10.1177/1087054718763741) artículo). Sin enmbargo, los investigadores tienen preguntas adicionales y están interesados en hipotetizar sobre otros aspectos relevantes a la enfermedad. Por ello, los contratan como apoyo en todo lo relacionado Analítica de Datos.
+
+
+## Ejercicio 1 (10 puntos)
+
+Seleccione sólo las columnas correspondientes a las variables relevantes. Analice la distribución de frecuencias de `ADHD`, `cluster` y `Sex`. Concluya.
+
+```{r ej1}
+## lectura de datos
+library(dplyr)
+x_relevant <- x %>% 
+  select(ADHD, cluster, Sex)
+## aquí va el código
+head(x_relevant)
+```
+```{r}
+library(ggplot2)
+anl_frec<-function(data, col)
+  {
+    frec<-data %>% 
+      count(!!sym(col)) %>% 
+      arrange(desc(n)) %>% 
+      mutate(porcentage = round( n / sum(n) * 100,2))
+    print(frec)
+    
+    ggplot(frec, aes(x = !!sym(col), y = n)) +
+      geom_bar(stat = "identity") +
+      labs(title = paste("Distribución de frecuencias de", col),
+           x = col,
+           y = "Frecuencia") +
+      theme_minimal()
+  }
+
+```
+
+```{r}
+anl_frec(x_relevant, "ADHD")
+```
+
+Anlizando la variable "ADHD" que describe el diagnostico **Enfermo** en la respuesta "yes" y **sano** en la respuesta "no" se puede identificar que 236 (57.84 %) de los niños esta enfermo y 172 (42.15 %) estan sanos.
+
+```{r}
+anl_frec(x_relevant, "cluster")
+```
+La distribución de frecuencia de la variable "cluster" describe 6 **grupos de severidad** que categorizan la pertenencia de cada uno de los niños estudiados.  En el primer grupo se incluyen 135 niños (33.09 %), en el segundo grupo 72 (17.65 %) niños, en el tercero grupo 64 (15.69 %) niños, en el cuarto grupo 57 (13.97 %) niños, en el quinto grupo 41 (10.05 %) niños y en el sexto grupo 39 (9.56 %) niños.
+
+```{r}
+anl_frec(x_relevant, "Sex")
+```
+En el analisis de distribucion de la variable **Sex** que describre el genero de los niños estudiados, encontramos que 233 (57.11 %) son catalogados como "M" genero masculino y 175 catalogadas como "F" que se describe como genero femenino. 
+
+
+## Ejercicio 2 (10 puntos)
+
+Es posible afirmar que *la mayoría* de las personas afectadas por la enfermedad corresponde a *menores de edad*? Visualice sus resultados. Determine qué patrón ocurre al desagregar la información por `Sex`. Concluya.
+
+```{r ej2}
+## lectura de datos
+library(dplyr)
+x_relevant <- x %>% 
+  select(ADHD, Age) %>% 
+  mutate("Menor_de_edad" = ifelse(Age<18, "yes","no"))
+## aquí va el código
+head(x_relevant)
+```
+
+```{r}
+frec_menor_de_edad <- x_relevant %>% 
+  count(Menor_de_edad) %>% 
+  mutate(Porcentage = round( n / sum(n) * 100,2))
+print(frec_menor_de_edad)
+```
+
+```{r}
+tabla_cont<-table(x_relevant$ADHD,x_relevant$Menor_de_edad)
+tabla_marg<-addmargins(tabla_cont)
+print(tabla_marg)
+```
+```{r}
+tabla_por<-round(prop.table(tabla_cont)*100,2)
+tabla_por_marg<-addmargins(tabla_por)
+print(tabla_por_marg)
+```
+No es posible afirmar que la mayoria de las personas afectadas por la enfermedad corresponde a menores de edad porque 135 personas estan enfermas y son menores de edad, esto corresponde al 33.09 % de la población. Sin embargo 145 personas son mayores de edad y no estan enfermas, esto representa el 35.54 %, esto es superior al 33.09 %.
+
+```{r}
+## lectura de datos
+library(dplyr)
+x_relevant <- x %>% 
+  select(ADHD, Age, Sex) %>% 
+  mutate("Menor_de_edad" = ifelse(Age<18, "yes","no"))
+## aquí va el código
+head(x_relevant)
+```
+
+```{r}
+tabla_cont<-table(x_relevant$ADHD,x_relevant$Menor_de_edad, x_relevant$Sex)
+tabla_marg<-addmargins(tabla_cont)
+#tabla_margf<-ftable(tabla_cont)
+cat("ADHD / Menor de edad segmentado por Genero\n")
+print(tabla_marg)
+```
+```{r}
+tabla_por<-round(prop.table(tabla_cont)*100,2)
+tabla_por_marg<-addmargins(tabla_por)
+#tabla_por_margf<-ftable(tabla_por_marg)
+cat("ADHD / Menor de edad / Genero")
+print(tabla_por_marg)
+```
+
+Segmentando la tabla de contingencia por genero ("Sex"), para identificar la cantidad de personas que presentan o no el diagnostico de enfermo descrito enla columna "ADHD" y si la persona es o no menor_de_edad, encontramos que en el genero maculino (M), 98 personas estan enfermos y son menores de edad, esto representa el 24.02 % y es el grupo con mayor participación. Por lo tanto en el genero masculino si es posible afirmar que la mayoria de personas afectadas por la enfermedad corresponde a menores de edad. En el genero femenino (F) no es posible afirmarlo. 
+
+## Ejercicio 3 (10 puntos)
+
+Podemos decir que existe una *asociación* entre el `cluster` y el número de síntomas de la enfermedad? En qué `cluster` parece encontrarse la mayor cantidad de personas con `ADHD`? Cuál es el `UID` de la persona *sin* `ADHD` con el mayor número de síntomas, y el `UID` de la persona diagnosticada con `ADHD` con el menor número de síntomas?
+
+```{r ej3}
+## lectura de datos
+library(dplyr)
+x_relevant <- x %>% 
+  select(UID, cluster, ADHD, inatsymptoms, impsymptoms, hypsymptoms) %>% 
+  mutate(Total_sintomas = (inatsymptoms + impsymptoms + hypsymptoms))
+## aquí va el código
+head(x_relevant)
+```
+
+```{r}
+tabla_cont<-table(x_relevant$cluster,x_relevant$ADHD)
+tabla_marg<-addmargins(tabla_cont)
+cat("Cluster / ADHD")
+print(tabla_marg)
+```
+En el cluster donde se puede encontrar la mayor cantidad de personas con ADHD es el número 2, donde se identifican 63 personas con la enfermedad.
+
+```{r}
+reg_max <- x_relevant %>% 
+  filter(ADHD == "yes")
+reg_max <- reg_max %>% 
+  filter(Total_sintomas == max(Total_sintomas))
+id_max <- reg_max$UID
+cat("Los UID de las personas enfermas con el mayor número de sintomas son:", id_max, "\n")
+```
+
+```{r}
+reg_min <- x_relevant %>% 
+  filter(ADHD == "yes")
+reg_min <- reg_min %>% 
+  filter(Total_sintomas == min(Total_sintomas))
+id_min <- reg_min$UID
+cat("Los UID de las personas enfermas con el menor número de sintomas son:", id_min, "\n")
+```
+
+
+## Ejercicio 4 (10 puntos)
+
+De acuerdo con `inatsymtoms`, quiénes son más inatentos? Los `Father`s o las `Mother`s? Determine el número de individuos `Father` con `ADHD` y compárelo con los individuos `Mother` con el diagnóstico. Es posible afirmar que en esta población los `Father`s son más inatentos que las `Mother`s? Use un nivel de significancia $alpha=0.05$ para *todas* las pruebas que considere necesario realizar.
+
+```{r ej4}
+## lectura de datos
+library(dplyr)
+x_relevant <- x %>% 
+  select(ADHD, inatsymptoms, , Sex, Father, Mother)
+## aquí va el código
+head(x_relevant)
+```
+
+
+```{r}
+x_relevant_ADHD <- x_relevant %>% 
+  filter(ADHD == "yes")
+head(x_relevant_ADHD)
+```
+
+
+```{r}
+
+father_ADHD <- x_relevant %>% 
+  filter(Sex =="M" & Father == 0 & ADHD == "yes")
+mother_ADHD <- x_relevant %>% 
+  filter(Sex =="F" & Mother == 0 & ADHD == "yes")
+
+n_f<-count(father_ADHD)
+cat("Padres con ADHD:",n_f$n, "\n")
+n_m<-count(mother_ADHD)
+cat("Madres con ADHD:",n_m$n, "\n")
+```
+```{r}
+library(ggplot2)
+library(gridExtra)
+# Crear el primer histograma
+hist_Father <- ggplot(father_ADHD, aes(x = inatsymptoms)) +
+  geom_histogram(binwidth = 1, alpha = 0.7) +
+  geom_density(aes(y = ..count..), color = "red") +
+  labs(title = "Father ADHD", x = "Inatsymptoms", y = "Frecuencia") +
+  theme_minimal()
+
+# Crear el segundo histograma
+hist_Mother <- ggplot(mother_ADHD, aes(x = inatsymptoms)) +
+  geom_histogram(binwidth = 1, alpha = 0.7) +
+  geom_density(aes(y = ..count..), color = "red") +
+  labs(title = "Mother ADHD", x = "Inatsymptoms", y = "Frecuencia") +
+  theme_minimal()
+
+# Presentar los dos histogramas en un mismo plano
+grid.arrange(hist_Father, hist_Mother, ncol = 2)
+
+```
+
+```{r}
+# Crear Father boxplot
+boxplot_Father <- ggplot(father_ADHD, aes(y = inatsymptoms)) +
+  geom_boxplot() +
+  labs(title = "Father ADHD", x = "Inatsymptoms", y = "Frecuencia") +
+  theme_minimal()
+
+# Crear Mother boxplot
+boxplot_Mother <- ggplot(mother_ADHD, aes(y = inatsymptoms)) +
+  geom_boxplot() +
+  labs(title = "Mother ADHD", x = "Inatsymptoms", y = "Frecuencia") +
+  theme_minimal()
+
+# Presentar los dos histogramas en un mismo plano
+grid.arrange(boxplot_Father, boxplot_Mother, ncol = 2)
+```
+
+**Hipotesis**
+
+$$H_0: \mu_{father_{ADHD}} = \mu_{mother_{ADHD}}$$
+$$H_1: \mu_{father_{ADHD}} \neq \mu_{mother_{ADHD}}$$
+
+```{r}
+# Realizar la prueba t de dos muestras independientes
+t_test_result <- t.test(father_ADHD$inatsymptoms, mother_ADHD$inatsymptoms)
+print(t_test_result)
+```
+
+```{r}
+# Imprimir el valor p
+cat("Valor p:", t_test_result$p.value, "\n")
+
+# Imprimir el intervalo de confianza
+cat("Intervalo de confianza:", t_test_result$conf.int, "\n")
+
+# Imprimir las medias de cada grupo
+cat("Media de father_ADHD:", mean(father_ADHD$inatsymptoms), "\n")
+cat("Media de mother_ADHD:", mean(mother_ADHD$inatsymptoms), "\n")
+
+# Conclusión basada en el valor p
+if (t_test_result$p.value < 0.05) {
+  cat("Se rechaza $h_{0}$.\n")
+} else {
+  cat("No se rechaza $h_{0}$\n")
+}
+
+```
+
+
+Basado en el p-valor (0.0016), con una significancia del 5% ($\alpha=0.05$) se rechaza $H_{0}$ y estadisticamente podemos afirmar que existe una diferencia significativa entre los sintomas de Father y Mother.
+
+
+## Ejercicio 5 (10 puntos)
+
+Podemos decir que existe una relación entre `Age` y `trait1` en personas menores de edad? Utilice EDA para ello. Ahora, determine si existe diferencia en la `trait1` promedio entre los individuos `Male` y `Female` menores edad diagnosticados con `ADHD`. Qué pasa si comparamos menores de edad `Male` con `ADHD` vs. `Male` sin `ADHD`? Use un nivel de significancia $\alpha=0.05$ para *todas* las pruebas que considere necesario realizar. Concluya.
+
+```{r ej5}
+## here you add some code
+## aquí va el código
+
+# Filtrar datos para menores de edad
+menores <- x %>% filter(Age < 18)
+
+# Visualizar la relación entre Age y trait1
+ggplot(menores, aes(x = Age, y = trait1)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red") +
+  labs(title = "Relación entre Age y trait1 en menores de edad",
+       x = "Edad",
+       y = "Tiempo de reaccion (ms)")
+
+```
+
+La línea de regresión tiene una pendiente negativa, lo que sugiere que a medida que la edad (**Age**) aumenta el tiempo de reacción en milisegundos para terminar una tarea (**trait1**) tiene a disminuir.
+
+Sin embargo, para confirmar estadísticamente esta relación, se puede realizar un análisis de regresión lineal y revisar el P-valor asociado a la pendiente de la línea de regresión.
+
+```{r}
+modelo <- lm(trait1 ~ Age, data = menores)
+summary(modelo)
+```
+
+Basado en el P-valor podemos decir que el tiempo de reaccion (ms) para terminar una tarea puede ser explicado por la edad en los menores de edad.
+
+Existe una relación estadisticamente significativa entre la edad y el tiempo de reaccion (ms) para terminar una tarea en menores de edad.
+
+El coeficiente negativo indica que a medida que la edad aumenta el tiempo de reaccion (ms) para terminar una tarea en menores de edad tiende a disminuir.
+
+El coeficiente de determinacion $R^{2}$ de $0.2452$ sugiere que el modelo explica una cantidad moderada de la variabilidad de el tiempo de reaccion (ms) para terminar una tarea en menores de edad.
+
+
+```{r}
+# Filtrar datos para menores de edad con ADHD
+menores_adhd <- menores %>% 
+  filter(ADHD == "yes")
+
+# Comparar trait1 entre Male y Female
+ggplot(menores_adhd, aes(x = Sex, y = trait1)) +
+  geom_boxplot() +
+  labs(title = "Comparación de trait1 entre Male y Female con ADHD",
+       x = "Sex",
+       y = "trait1")
+
+# Realizar una prueba t para comparar trait1 entre Male y Female
+t_test_sex <- t.test(trait1 ~ Sex, data = menores_adhd)
+t_test_sex
+
+
+```
+
+Basado en la imgen podemos obtener las siguientes conclusiones:
+
+Los valores de trait1 están distribuidos de manera similar entre hombres y mujeres con ADHD.
+
+Las medianas y la variabilidad de el tiempo de reaccion (ms) para terminar una tarea en menores de edad **trait1** son comparables entre los dos sexos.
+
+No parece haber una diferencia significativa en el tiempo de reaccion (ms) para terminar una tarea en menores de edad **trait1** entre hombres y mujeres con ADHD, al menos visualmente.
+
+Basado en los reusltados del modelo, podemos tomar las siguientes conclusiones:
+
+**Hipotesis**
+
+$$H_0: \mu_{trail_M} = \mu_{trail_F}$$
+$$H_1: \mu_{trail_M} \neq \mu_{trail_F}$$
+
+Dado que el valor p (0.574) es mucho mayor que el nivel de significancia del 5% ($\alpha=0.05$), no rechazamos la hipótesis nula. Por lo tanto, tenemos evidencia estadistica para concluir que no existe una diferencia significativa en las medias de el tiempo de reaccion (ms) para terminar una tarea en menores de edad **trail1** entre hombre y mujeres con ADHD.
+
+
+
